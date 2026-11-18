@@ -1,0 +1,8 @@
+name,email,roles,is_chief
+Имя Фамилия,email@example.com,Автор брифа;ОТК,yes
+Имя Фамилия,email@example.com,Сценарист,no
+Имя Фамилия,email@example.com,Видеомейкер,no
+Имя Фамилия,email@example.com,Проект-менеджер,no
+Имя Фамилия,email@example.com,AI контент-мейкер,no
+Имя Фамилия,email@example.com,Монтажёр,no
+Имя Фамилия,email@example.com,SMM,no
