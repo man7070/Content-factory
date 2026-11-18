@@ -1,0 +1,3 @@
+# Каталог стилей (ST-xx)
+Сохраняй сюда стили: ST-01 уличный1, ST-02 Night Office Kinetic, ST-03 Emerald X-Ray, ST-04 Switch Toggle Swipe…
+Файл на стиль: ST-xx_<имя>.md — палитра, шрифты, типы переходов, темп, SFX.

@@ -1,0 +1,353 @@
+<title>Контент-завод</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: левая колонка-конвейер из 6 станций; справа вкладки с данными */
+:root{--bg:#f3f2ee;--surface:#fbfaf7;--fg:#1d1f1c;--mut:#6b6f66;--line:#d9d7cf;--accent:#e4572e;--accent-fg:#fff;--ok:#2f7d4f;--warn:#b7791f;--bad:#b83232;
+--f:'Onest',system-ui,sans-serif;--m:'JetBrains Mono',ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a0c0f;--surface:#12151a;--fg:#e9edf2;--mut:#8791a0;--line:#262c35;--accent:#ff6b3d;--accent-fg:#160a05;--ok:#4cc38a;--warn:#e5ae4a;--bad:#ff6b6b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0a0c0f;--surface:#12151a;--fg:#e9edf2;--mut:#8791a0;--line:#262c35;--accent:#ff6b3d;--accent-fg:#160a05;--ok:#4cc38a;--warn:#e5ae4a;--bad:#ff6b6b;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.45 var(--f);padding-block:20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+h1{font-size:28px;margin:0;letter-spacing:-.02em;text-wrap:balance}
+.sub{color:var(--mut);margin:2px 0 0}
+.flow{display:flex;gap:0;flex-wrap:wrap;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.flow div{flex:1 1 150px;padding:10px 12px;border-right:1px solid var(--line);min-width:0}
+.flow div:last-child{border-right:0}
+.flow b{display:block;font-size:13px}.flow span{font:12px var(--m);color:var(--mut)}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button,.btn{font:500 14px var(--f);padding:8px 14px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+nav button[aria-selected=true]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.board{display:grid;grid-template-columns:repeat(6,minmax(170px,1fr));gap:10px;overflow-x:auto;padding-bottom:6px}
+.col{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:140px}
+.col h3{margin:0;font:500 12px var(--m);text-transform:uppercase;letter-spacing:.06em;color:var(--mut);display:flex;justify-content:space-between}
+.card{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px;display:flex;flex-direction:column;gap:6px}
+.card b{font-size:14px}.meta{font:12px var(--m);color:var(--mut);overflow-wrap:anywhere}
+.card .row{display:flex;gap:6px;flex-wrap:wrap}
+.card button{font:12px var(--f);padding:4px 8px;border:1px solid var(--line);border-radius:4px;background:var(--surface);color:var(--fg);cursor:pointer}
+.pill{font:11px var(--m);padding:2px 7px;border-radius:99px;border:1px solid var(--line);width:fit-content}
+.pill.motion{color:var(--accent);border-color:var(--accent)}.pill.library{color:var(--ok);border-color:var(--ok)}.pill.hybrid{color:var(--warn);border-color:var(--warn)}
+form{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mut);min-width:0}
+input,select,textarea{font:15px var(--f);padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);min-width:0;width:100%}
+form .wide{grid-column:1/-1}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
+th{font:500 12px var(--m);text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+tr:last-child td{border-bottom:0}
+.empty{padding:18px;color:var(--mut)}
+.note{font-size:13px;color:var(--mut);margin:0}
+.rule{font-size:13px;background:var(--surface);border:1px dashed var(--line);border-radius:8px;padding:10px 12px}
+@media (prefers-reduced-motion:no-preference){.btn,nav button{transition:background .15s}}
+
+.board{grid-template-columns:repeat(8,minmax(190px,1fr))!important}
+.col.dim{opacity:.45}.col.mine{border-color:var(--accent)}
+.role{font:11px var(--m);color:var(--accent)}
+.card{cursor:pointer}.card:hover{border-color:var(--accent)}
+.stepper{display:flex;gap:4px;flex-wrap:wrap}
+.stepper span{font:12px var(--m);padding:3px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mut)}
+.stepper span.done{color:var(--ok);border-color:var(--ok)}.stepper span.now{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+details.sec{background:var(--surface);border:1px solid var(--line);border-radius:8px}
+details.sec>summary{cursor:pointer;padding:12px 14px;font-weight:600;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+details.sec>summary .role{font-weight:400}
+details.sec.active{border-color:var(--accent)}
+.sec .body{padding:0 14px 14px;display:flex;flex-direction:column;gap:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.scene{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--bg);display:flex;flex-direction:column;gap:10px}
+.scene h4{margin:0;font:500 13px var(--m);display:flex;justify-content:space-between;gap:8px}
+.ro{background:var(--surface);padding:8px;border-radius:6px;font-size:14px;overflow-wrap:anywhere;white-space:pre-wrap}
+.ro small{display:block;font:11px var(--m);color:var(--mut)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;position:sticky;bottom:0;background:var(--bg);padding:10px 0}
+.err{color:var(--bad);font-size:14px}
+input:disabled,select:disabled,textarea:disabled{opacity:.7}
+.chk{flex-direction:row;align-items:center;gap:8px;color:var(--fg)}.chk input{width:auto}
+.board{grid-template-columns:repeat(7,minmax(165px,1fr))!important}
+.board.few{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))!important}
+.prog{font:12px var(--m);color:var(--fg)}
+label.hd,header label{white-space:nowrap}
+.bar{border-top:1px solid var(--line)}
+.bar .btn.primary{flex:1 1 260px;text-align:center}
+.ready{font-size:13px;color:var(--mut);flex:1 1 100%}.ready.ok{color:var(--ok)}
+.hist{font:500 12px var(--m);text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin-top:6px}
+.linkbtn{background:none;border:0;color:var(--mut);font:13px var(--f);text-decoration:underline;cursor:pointer;padding:6px 0;width:fit-content}
+@media (max-width:720px){.board{display:flex!important;flex-direction:column;overflow:visible}.col{min-height:0}.col.emp{display:none}.flowhide{display:none}}
+.aprow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.apbox{display:flex;flex-direction:column;gap:8px}button:disabled{opacity:.45;cursor:not-allowed}.tag{font:11px var(--m);color:var(--accent)}.chips{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mut)}.crow{display:flex;gap:6px;flex-wrap:wrap}.chip{font:500 14px var(--m);padding:8px 14px;border:1px solid var(--line);border-radius:99px;background:var(--bg);color:var(--fg);cursor:pointer}.chip[aria-pressed=true]{background:var(--fg);color:var(--bg);border-color:var(--fg)}.errbox{border:1px solid var(--bad);border-left:4px solid var(--bad);background:color-mix(in srgb,var(--bad) 10%,var(--surface));color:var(--fg);border-radius:8px;padding:10px 14px}.errbox ul{margin:6px 0 0;padding-left:18px;font-size:14px}.errbox[hidden]{display:none}
+input.bad,select.bad,textarea.bad,.crow.bad{border-color:var(--bad)!important;box-shadow:0 0 0 1px var(--bad)}.crow.bad{padding:4px;border:1px solid;border-radius:99px}
+input.good,select.good,textarea.good{border-color:var(--ok)!important;background:color-mix(in srgb,var(--ok) 12%,var(--bg))}.crow.good .chip[aria-pressed=true]{background:var(--ok);border-color:var(--ok);color:var(--bg)}label.chk.bad{color:var(--bad)}label.chk.good{color:var(--ok)}.takes{display:flex;flex-direction:column;gap:8px}.take{border:1px dashed var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px}.take .row{display:flex;gap:6px;flex-wrap:wrap}.ok{color:var(--ok)}.review{display:grid;grid-template-columns:minmax(260px,5fr) minmax(0,7fr);gap:16px;align-items:start}.rv-left{position:sticky;top:12px}.rv-right{display:flex;flex-direction:column;gap:12px;min-width:0}.rv-sticky{display:flex;flex-direction:column;gap:8px}.vid{width:100%;max-height:78vh;background:#000;border-radius:8px}.vidbox{border:1px dashed var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:10px;align-items:flex-start;background:var(--surface);overflow-wrap:anywhere}@media (max-width:820px){.review{grid-template-columns:1fr}.rv-left{position:static}}.rvgroup{display:flex;flex-direction:column;gap:6px}.rvrow{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:start;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--bg)}.rvrow.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 10%,var(--bg))}.rvrow.miss,.rvrow.extra{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 8%,var(--bg))}.rvtxt{white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}.rvtxt small{display:block;font:11px var(--m);color:var(--mut)}.rvbtns{display:flex;gap:4px;flex-wrap:wrap}.rvb{font:500 13px var(--f);padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--fg);cursor:pointer}.rvb[aria-pressed=true].ok{background:var(--ok);color:var(--bg);border-color:var(--ok)}.rvb[aria-pressed=true].miss,.rvb[aria-pressed=true].extra{background:var(--bad);color:var(--bg);border-color:var(--bad)}.rvnote{grid-column:1/-1}@media (max-width:560px){.rvrow{grid-template-columns:1fr}}.rows{display:flex;flex-direction:column;gap:12px}.rows .board{grid-template-columns:repeat(6,minmax(150px,1fr))!important}.rows .board:not(:nth-child(2)){grid-template-columns:repeat(6,minmax(150px,1fr))!important}@media (max-width:720px){.rows .board{display:flex!important}}.sw{display:inline-flex;align-items:center;gap:8px;font:500 13px var(--f);color:var(--mut);cursor:pointer;background:none;border:0;padding:4px}.sw .trk{width:44px;height:24px;border-radius:99px;border:1px solid var(--line);background:var(--surface);position:relative;transition:background .2s}.sw .knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--fg);transition:transform .2s}:root[data-theme=dark] .sw .knob{transform:translateX(20px);background:var(--accent)}:root[data-theme=dark] .sw .trk{border-color:var(--accent)}@media (prefers-reduced-motion:reduce){.sw .knob,.sw .trk{transition:none}}.stlab{font:12px var(--m);color:var(--mut);text-align:right;max-width:200px}.st-awarded{color:var(--ok)}.st-waiting{color:var(--warn)}.st-unassigned{color:var(--bad)}.rvtxt input{margin-top:4px}.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.kpi{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--surface);display:flex;flex-direction:column;gap:4px}.kpi small{font:12px var(--m);color:var(--mut)}.kpi b{font-size:22px;font-variant-numeric:tabular-nums}.kpi span{font-size:13px;color:var(--mut)}.clk{cursor:pointer}.clk:hover td{background:color-mix(in srgb,var(--accent) 8%,transparent)}.chipbtn{font:12px var(--m);padding:3px 8px;border:1px solid var(--line);border-radius:99px;background:var(--bg);color:var(--fg);cursor:pointer}.chipbtn:hover{border-color:var(--accent)}tfoot td{border-top:1px solid var(--line)}.tbl a{color:var(--fg)}</style>
+<div class="wrap">
+<header><div><h1>Контент-завод</h1><p class="sub">У каждого этапа своя роль и своя форма. Передать дальше можно, когда этап заполнен.</p></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><label style="flex-direction:row;align-items:center;gap:6px">Моя роль<select id="role"></select></label><button class="sw" id="themebtn" type="button" aria-label="Тёмная тема"><span>Тёмная</span><span class="trk"><span class="knob"></span></span></button><button class="btn primary" id="newbtn">+ Новый ролик</button></div></header>
+<nav role="tablist" id="tabs"></nav>
+<main id="view"></main>
+<p class="note" id="status" role="status"></p>
+</div>
+<script>
+const ST=[
+ {k:'бриф',role:'Автор брифа',hint:'Заполняет бриф: что за ролик, для кого, зачем.'},
+ {k:'сценарий',role:'Сценарист',hint:'Пишет сценарий по сценам: голос, текст на экране, визуал.'},
+ {k:'съёмка',role:'Видеомейкер',hint:'Читает сценарий и распределяет кадры: как и где снимать, что снято.'},
+ {k:'сборка материала',role:'Проект-менеджер',hint:'Смотрит отснятое и привязывает файлы к сценам.'},
+ {k:'AI B-roll',role:'AI контент-мейкер',hint:'Генерирует кадры, которые нельзя снять: AI B-roll или анимацию. Только для сцен, где съёмка невозможна.'},
+ {k:'упаковка',role:'Проект-менеджер → Монтажёр',hint:'ПМ пишет инструкцию по каждой сцене, монтажёр склеивает и даёт ссылку на рендер.'},
+ {k:'готов',role:'ОТК',hint:'Проверка готового ролика по чек-листу.'},
+ {k:'публикация',role:'SMM',hint:'Площадка, дата и ссылка на публикацию.'}];
+const ROLES=['Все','Главный','Автор брифа','Сценарист','Видеомейкер','Проект-менеджер','AI контент-мейкер','Монтажёр','ОТК','SMM'];
+const ROLEMAP={'Главный':[0,1,2,3,4,5,6,7],'Автор брифа':[0],'Сценарист':[1],'Видеомейкер':[2],'Проект-менеджер':[3,5],'AI контент-мейкер':[4],'Монтажёр':[5],'ОТК':[6],'SMM':[7]};
+const QC=[['hook','Хук в первые 3 секунды'],['text','Текст читается, без опечаток'],['brand','Цвета, шрифты, лого и CTA по бренду'],['audio','Громкость −14 LUFS, голос не тонет'],['fmt','Формат, fps и длительность по брифу']];
+const FMT=['9:16 Reels 1080×1920','1:1','16:9'],APPROACH=['','motion','library','hybrid','voice-motion'];
+let db=null,U=null,AS=null,me=null,teamOpen=false,bView=null,tab='queue',role=(()=>{try{return localStorage.getItem('role')||'Все'}catch(e){return 'Все'}})(),openId=null,data={jobs:[],clips:[],brands:[],styles:[]};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const setStatus=t=>{$('#status').textContent=t||''};
+const days=t=>{if(!t||t<1e12)return '';const m=(Date.now()-t)/6e4;return m<60?'только что':m<1440?Math.floor(m/60)+' ч в этапе':Math.floor(m/1440)+' дн в этапе'};
+function prog(j){const sc=j.scenes||[],n=idx(j),c=f=>sc.filter(f).length;
+ return [j.cta?'CTA указан':'CTA не указан',`сцен: ${sc.length}`,`снято ${c(s=>s.take==='снято')}/${sc.length}`,`файлов ${c(s=>s.file)}/${sc.length}`,`AI-кадров ${c(s=>isGap(s)&&s.aiStatus==='сгенерировано')}/${c(isGap)}`,`в монтаже ${c(s=>s.edited)}/${sc.length} · инструкций ${c(s=>s.editInstr||j.editInstr)}/${sc.length}${j.renderUrl?' · рендер есть':''}`,`ОТК ${Object.values(j.qc||{}).filter(Boolean).length}/5`,j.published?'опубликовано':(j.platform||'площадка не выбрана')][n]}
+const idx=j=>Math.max(0,ST.findIndex(s=>s.k===j.status));
+function tabs(){const T=[['queue','Очередь'],['bonus','Бонусы'],['clips','База клипов'],['brands','Бренды'],['styles','Стили']];
+ $('#tabs').innerHTML=T.map(([k,n])=>`<button role="tab" aria-selected="${k===tab&&!openId}" data-t="${k}">${n}</button>`).join('');
+ $('#tabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;openId=null;bView=null;render()})}
+function render(){tabs();$('#role').innerHTML=ROLES.map(r=>`<option${r===role?' selected':''}>${r}</option>`).join('');
+ if(openId&&data.jobs.find(j=>j.id===openId))return detail();openId=null;({queue,new:newJob,bonus,clips,brands,styles})[tab]()}
+const needDb=()=>db?'':'<div class="rule">Сохранение недоступно в этом просмотре: войдите в аккаунт, чтобы данные записывались.</div>';
+const opts=(a,v)=>a.map(x=>`<option${x===v?' selected':''}>${esc(x)}</option>`).join('');
+function queue(){
+ const mine=role==='Все'?[]:ROLEMAP[role];const show=ST.map((_,i)=>i).filter(i=>!mine.length||mine.includes(i));
+ $('#view').innerHTML=needDb()+`${mine.length?`<p class="note">Показаны этапы роли «${role}». Чтобы увидеть весь завод, выберите «Все» в поле «Моя роль».</p>`:''}${(()=>{const col=i=>{const s=ST[i];const js=data.jobs.filter(j=>idx(j)===i);
+ return `<section class="col ${js.length?'':'emp'}"><h3><span>${s.k}</span><span>${js.length}</span></h3><span class="role">${s.role}</span>${js.map(j=>`<div class="card" tabindex="0" data-open="${j.id}"><b>${esc(j.topic)}</b><span class="meta">${esc(j.brand)}${j.format?' · '+esc(j.format):''}</span>${j.approach?`<span class="pill ${esc(j.approach)}">${esc(j.approach)}</span>`:''}<span class="prog">${esc(prog(j))}</span><span class="meta">${esc(days(j.since||j.created))}</span></div>`).join('')||'<span class="meta">пусто</span>'}</section>`};const row=ix=>`<div class="board ${mine.length?'few':''}">${ix.map(col).join('')}</div>`;return mine.length?row(show):`<div class="rows">${row([0])}${row([1,2,3,4,5,6])}${row([7])}</div>`})()}`+(data.jobs.length?'':'<div class="empty">Очередь пуста. Нажмите «+ Новый ролик».</div>')+'<p class="note">Откройте карточку: сверху форма текущего этапа, ниже справка по прошлым.</p>';
+ $('#view').querySelectorAll('[data-open]').forEach(c=>{c.onclick=()=>{openId=c.dataset.open;render()};c.onkeydown=e=>{if(e.key==='Enter'){openId=c.dataset.open;render()}}})}
+function newJob(){
+ $('#view').innerHTML=needDb()+`<form id="f"><label>Бренд<input id="brand" list="bl" required><datalist id="bl">${data.brands.map(b=>`<option>${esc(b.name)}</option>`).join('')}</datalist></label>
+ <label class="wide">Тема / оффер<input id="topic" required placeholder="О чём ролик"></label>
+ <label class="wide">Партия: ещё темы, по одной в строке (необязательно)<textarea id="more" rows="3"></textarea></label>
+ <div class="wide"><button class="btn primary" type="submit">Создать и открыть бриф</button></div></form>`;
+ $('#f').onsubmit=async e=>{e.preventDefault();if(!db){setStatus('Нужен вход в аккаунт.');return}
+  const ts=[$('#topic').value.trim(),...$('#more').value.split('\n').map(s=>s.trim()).filter(Boolean)];let last;
+  try{for(const t of ts)last=await db.collection('jobs').add({brand:$('#brand').value.trim(),topic:t,status:'бриф',chief:me||'',appr:{},format:FMT[0],lang:'русский',duration:30,scenes:[],qc:{},created:Date.now()});
+   openId=last.id;tab='queue';render()}catch(err){setStatus('Не удалось сохранить: '+err.message)}}}
+/* ---------- карточка ролика ---------- */
+function fld(label,key,val,o={}){const dis=o.dis?'disabled':'';const at=`data-k="${key}"${o.i!=null?` data-i="${o.i}"`:''}`;
+ if(o.dis&&o.ro)return `<div><div class="ro"><small>${label}</small>${esc(val)||'—'}</div></div>`;
+ let c;if(o.opts)c=`<select ${at} ${dis}>${opts(o.opts,val)}</select>`;
+ else if(o.rows)c=`<textarea ${at} rows="${o.rows}" ${dis} ${o.ph?`placeholder="${esc(o.ph)}"`:''}>${esc(val)}</textarea>`;
+ else c=`<input ${at} type="${o.type||'text'}" value="${esc(val)}" ${dis} ${o.ph?`placeholder="${esc(o.ph)}"`:''}>`;
+ return `<label>${label}${c}${o.tag?`<span class="tag">${o.tag}</span>`:''}</label>`}
+function sec(title,roleName,open,active,inner){return `<details class="sec ${active?'active':''}" ${open?'open':''}><summary>${title}<span class="role">${roleName}</span></summary><div class="body">${inner}</div></details>`}
+const BYSTAGE=['автор брифа','сценарист','видеомейкер','проект-менеджер','AI контент-мейкер','монтажёр'];
+const OUTF=['9:16','1:1','16:9','4:5'];
+const isGap=s=>s.source==='анимация'||s.verdict==='заменить анимацией';
+const takesHtml=(s,i,off)=>{const t=s.takes||[];
+ return `<div class="takes"><div class="hist">Дубли и другие варианты кадра (${t.length})</div>${t.map((x,ti)=>`<div class="take"><div class="grid"><label>Файл из архива или ссылка (Telegram-канал, группа, облако)<input data-tf="file" data-i="${i}" data-ti="${ti}" value="${esc(x.file)}" ${off?'disabled':''} placeholder="https://t.me/… или имя файла"></label><label>Отрезок (in–out)<input data-tf="inout" data-i="${i}" data-ti="${ti}" value="${esc(x.inout)}" ${off?'disabled':''}></label><label>Чем отличается (стиль, ракурс)<input data-tf="note" data-i="${i}" data-ti="${ti}" value="${esc(x.note)}" ${off?'disabled':''}></label></div>${off?'':`<div class="row">${AS?`<button type="button" class="btn" data-upl="${i}:${ti}">Загрузить файл</button>`:''}<button type="button" class="btn" data-rmtake="${i}:${ti}">Убрать</button></div>`}</div>`).join('')}${off?'':`<button type="button" class="btn" data-addtake="${i}">+ Дополнить ещё видео</button>`}</div>`};
+const authorTag=(j,s,k)=>s[k]?'Заполнил: '+((s.src||{})[k]||'сценарист'):j[k]?'Из брифа: автор брифа':'Пока никто не заполнил';
+const isVid=j=>j.renderUrl&&(j.renderIsFile||/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(j.renderUrl)||j.renderUrl.startsWith('/_blob/'));
+function videoPane(j){const u=j.renderUrl;
+ if(!u)return '<div class="vidbox empty">Ролик ещё не приложен. Монтажёр добавляет его на этапе «упаковка».</div>';
+ if(isVid(j))return `<video class="vid" controls playsinline preload="metadata" src="${esc(u)}"></video>`;
+ const ok=/^https?:\/\//i.test(u);
+ return `<div class="vidbox"><p class="note">Эту ссылку нельзя встроить в страницу. Откройте ролик в новой вкладке, посмотрите и вернитесь сюда отметить чек-лист.</p>${ok?`<a class="btn primary" href="${esc(u)}" target="_blank" rel="noopener">Открыть ролик</a>`:''}<div class="meta">${esc(u)}</div></div>`}
+const RV=[['ok','Верно'],['miss','Пропущено'],['extra','Лишнее']];
+function reviewItems(j){const out=[],sc=j.scenes||[],add=(g,key,l,v)=>{if(v&&String(v).trim())out.push({g,key,l,v:String(v)})};
+ add('Бриф','brand','Бренд и тема',[j.brand,j.topic].filter(Boolean).join(' · '));add('Бриф','cta','CTA',j.cta);add('Бриф','fmt','Формат, язык, длительность',[j.format,j.lang,j.duration?j.duration+' с':''].filter(Boolean).join(' · '));add('Бриф','appr','Подход и стиль',[j.approach,j.style].filter(Boolean).join(' · '));
+ add('Бриф','aud','Аудитория и боль',j.audience);add('Бриф','refs','Референсы',j.refs);add('Бриф','shoot','Как / с кем / где снимать (общее)',[j.how,j.who,j.place].filter(Boolean).join(' · '));add('Бриф','broll','Живой B-roll (общее)',j.broll);add('Бриф','einstr','Инструкция монтажёру (общая)',j.editInstr);
+ add('Бриф','music','Музыка',j.music);add('Бриф','voice','Голос',j.voiceMode);add('Бриф','out','Выходные форматы',j.outFmt);
+ sc.forEach((x,i)=>{const g='Сцена '+(i+1)+(x.time?' · '+x.time:''),p='s'+i+'.';
+  add(g,p+'voice','Текст голоса',x.voice);add(g,p+'screen','Текст на экране',x.screen);add(g,p+'visual','Визуал',x.visual);add(g,p+'how','Как снимать',x.how||j.how);add(g,p+'who','С кем снимать',x.who||j.who);add(g,p+'place','Где снимать',x.place||j.place);add(g,p+'broll','Живой B-roll',x.broll);
+  add(g,p+'file','Материал',[x.file,x.inout,x.verdict].filter(Boolean).join(' · '));(x.takes||[]).filter(t=>t.file).forEach((t,k)=>add(g,p+'t'+k,'Дубль '+(k+2),[t.file,t.inout,t.note].filter(Boolean).join(' · ')));
+  if(isGap(x))add(g,p+'ai','AI B-roll / анимация',[x.aiType,x.aiTool,x.aiPrompt,x.aiFile].filter(Boolean).join(' · '));add(g,p+'edit','Инструкция монтажёру',x.editInstr||j.editInstr)});
+ return out}
+function rvStats(j){const it=reviewItems(j),r=j.review||{},c={ok:0,miss:0,extra:0,none:0};it.forEach(x=>{const st=(r[x.key]||{}).st;c[st||'none']++});return c}
+function reviewHtml(j,ro){const it=reviewItems(j),r=j.review||{},c=rvStats(j);
+ const head=`<p class="note" id="rvstat">Верно ${c.ok} · Пропущено ${c.miss} · Лишнее ${c.extra} · Не проверено ${c.none}</p>`;
+ if(ro){const bad=it.filter(x=>['miss','extra'].includes((r[x.key]||{}).st));
+  return head+(bad.length?bad.map(x=>`<div class="ro"><small>${esc(x.g)} · ${esc(x.l)} · ${(r[x.key].st==='miss'?'ПРОПУЩЕНО':'ЛИШНЕЕ')}</small>${esc(x.v)}${r[x.key].note?'\nКомментарий: '+esc(r[x.key].note):''}</div>`).join(''):'<div class="empty">Замечаний нет.</div>')+(j.qcMissed?`<div class="ro"><small>Что пропустили</small>${esc(j.qcMissed)}</div>`:'')+(j.qcExtra?`<div class="ro"><small>Что было лишнее</small>${esc(j.qcExtra)}</div>`:'')}
+ const groups=[...new Set(it.map(x=>x.g))];
+ const dis=idx(j)!==6||!db;
+ return head+(dis?'':'<div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="rvall">Отметить всё «Верно»</button></div>')+groups.map(g=>`<div class="rvgroup"><div class="hist">${esc(g)}</div>${it.filter(x=>x.g===g).map(x=>{const cur=r[x.key]||{};return `<div class="rvrow ${cur.st||''}" data-rvrow="${esc(x.key)}"><div class="rvtxt"><small>${esc(x.l)}</small>${esc(x.v)}</div><div class="rvbtns">${RV.map(([k,l])=>`<button type="button" class="rvb ${k}" data-rv="${esc(x.key)}|${k}" aria-pressed="${cur.st===k}" ${dis?'disabled':''}>${l}</button>`).join('')}</div><input class="rvnote" data-rvn="${esc(x.key)}" value="${esc(cur.note||'')}" placeholder="Что не так" ${cur.st&&cur.st!=='ok'?'':'hidden'} ${dis?'disabled':''}></div>`}).join('')}</div>`).join('')+`<div class="grid" style="margin-top:12px">${fld('Что мы пропустили в целом','qcMissed',j.qcMissed,{dis,rows:2})}${fld('Что было лишнее в целом','qcExtra',j.qcExtra,{dis,rows:2})}</div>`}
+/* ---------- бонусы ---------- */
+const BROLES=['Автор брифа','Сценарист','Видеомейкер','Проект-менеджер','AI контент-мейкер','Монтажёр','ОТК','SMM'];
+const sum=v=>(+v||0).toLocaleString('ru-RU')+' сум';
+const RSTAGE={'Автор брифа':0,'Сценарист':1,'Видеомейкер':2,'Проект-менеджер':5,'AI контент-мейкер':4,'Монтажёр':5,'ОТК':6,'SMM':7};
+const SLAB={na:'не требуется',nosum:'сумма не указана',unassigned:'не назначен',working:'в работе',waiting:'выполнено, ждёт завершения проекта',awarded:'к выплате'};
+function roleRows(j,fresh){
+ if(j.bonus&&!fresh)return j.bonus.items;
+ const n=idx(j),gaps=(j.scenes||[]).some(isGap),a=j.assign||{},am=j.amt||{};
+ return BROLES.map(role=>{const st=RSTAGE[role],name=(a[role]||'').trim(),pts=+am[role]||0;
+  const done=st===7?!!j.published:n>st;
+  let status=role==='AI контент-мейкер'&&!gaps?'na':!name?'unassigned':!pts?'nosum':done?(j.published?'awarded':'waiting'):'working';
+  return {role,name,pts,status}})}
+function teamHtml(j,n){const rows=roleRows(j),fin=!!j.published,off=!db||!!j.bonus,chiefOk=db&&!j.bonus&&(!j.chief||j.chief===me);
+ const tot=rows.filter(r=>r.status==='awarded').reduce((x,r)=>x+r.pts,0),wait=rows.filter(r=>r.status==='waiting').reduce((x,r)=>x+r.pts,0),plan=rows.filter(r=>r.status!=='na').reduce((x,r)=>x+r.pts,0);
+ const msg=fin?`Проект завершён. К выплате: ${sum(tot)}.`:`Проект ещё не завершён. Оплата начисляется назначенным сотрудникам после публикации ролика и закрытого чек-листа ОТК. Выполнено и ждёт: ${sum(wait)}. Всего по сделке: ${sum(plan)}.`;
+ const am=j.amt||{};
+ const body=`<p class="note">${msg}</p><p class="note">Заполняется один раз при публикации: кто выполнял каждую роль и сколько ему платить. Суммы вводит автор брифа (главный).</p>`+rows.map(r=>`<div class="rvrow ${r.status==='awarded'?'ok':r.status==='unassigned'||r.status==='nosum'?'miss':''}"><div class="rvtxt"><small>${esc(r.role)}</small>${r.status==='na'?'—':`<div class="grid"><label>Сотрудник<input data-asg="${esc(r.role)}" value="${esc(r.name)}" placeholder="Имя" ${off?'disabled':''}></label><label>Оплата, сум<input data-amt="${esc(r.role)}" type="number" min="0" step="1000" value="${esc(j.bonus?r.pts:(am[r.role]||''))}" placeholder="0" ${chiefOk?'':'disabled'}></label></div>`}</div><div class="stlab st-${r.status}">${SLAB[r.status]}${r.status==='awarded'||r.status==='waiting'?'<br>'+sum(r.pts):''}</div></div>`).join('');
+ return sec('Команда и оплата',fin?`к выплате ${sum(tot)}`:`всего по сделке ${sum(plan)}`,true,!fin,body).replace('<details class="sec','<details data-team class="sec')}
+function bonusReport(){
+ const {kind,key}=bView;const rows=[];
+ data.jobs.forEach(j=>roleRows(j).forEach(r=>{if(r.status==='na')return;if(kind==='person'?r.name===key:r.role===key)rows.push({j,r})}));
+ const f=k=>rows.filter(x=>x.r.status===k).reduce((a,x)=>a+x.r.pts,0),cnt=k=>rows.filter(x=>x.r.status===k).length;
+ const jobs=new Set(rows.map(x=>x.j.id)).size;
+ const order={awarded:0,waiting:1,working:2,nosum:3,unassigned:4};rows.sort((a,b)=>order[a.r.status]-order[b.r.status]);
+ const title=kind==='person'?key:'Роль: '+key;
+ const sub=kind==='person'?[...new Set(rows.map(x=>x.r.role))].join(', '):'все сотрудники и ролики с этой ролью';
+ const tot=rows.reduce((a,x)=>a+x.r.pts,0);
+ $('#view').innerHTML=`<button class="btn" id="bback" style="width:fit-content">← К бонусам</button><div><h2 style="margin:0">${esc(title)}</h2><p class="sub">${esc(sub)}</p></div>
+ <div class="kpis"><div class="kpi"><small>К выплате (завершённые проекты)</small><b class="ok">${sum(f('awarded'))}</b><span>работ: ${cnt('awarded')}</span></div><div class="kpi"><small>Выполнено, ждёт завершения проекта</small><b>${sum(f('waiting'))}</b><span>работ: ${cnt('waiting')}</span></div><div class="kpi"><small>В работе</small><b>${sum(f('working'))}</b><span>работ: ${cnt('working')}</span></div><div class="kpi"><small>Всего по сделкам</small><b>${sum(tot)}</b><span>проектов: ${jobs}</span></div></div>
+ ${rows.length?`<div class="tbl"><table><thead><tr><th>Ролик</th>${kind==='role'?'<th>Сотрудник</th>':'<th>Роль</th>'}<th>Этап ролика</th><th>Статус работы</th><th>Сумма, сум</th></tr></thead><tbody>${rows.map(x=>`<tr><td><a href="#" data-open="${x.j.id}"><b>${esc(x.j.topic)}</b></a><br><span class="meta">${esc(x.j.brand)}${x.j.published?' · опубликован':''}</span></td><td>${esc(kind==='role'?(x.r.name||'не назначен'):x.r.role)}</td><td>${x.j.published?'завершён':esc(x.j.status)}</td><td class="st-${x.r.status}">${SLAB[x.r.status]}</td><td>${x.r.pts?x.r.pts.toLocaleString('ru-RU'):'—'}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="4"><b>Итого</b></td><td><b>${tot.toLocaleString('ru-RU')}</b></td></tr></tfoot></table></div>`:'<div class="empty">Работ не найдено.</div>'}`;
+ $('#bback').onclick=()=>{bView=null;render()};
+ $('#view').querySelectorAll('[data-open]').forEach(a=>a.onclick=e=>{e.preventDefault();openId=a.dataset.open;render()})}
+function bonus(){
+ if(bView)return bonusReport();
+ const per={};let open=0;
+ data.jobs.forEach(j=>{roleRows(j).forEach(r=>{if(!r.name||!['awarded','waiting','working'].includes(r.status)&&r.pts>0)return;const p=per[r.name]=per[r.name]||{aw:0,wait:0,work:0,jobs:new Set(),roles:new Set()};p.jobs.add(j.id);p.roles.add(r.role);
+  if(r.status==='awarded')p.aw+=r.pts;else if(r.status==='waiting')p.wait+=r.pts;else p.work+=r.pts})});
+ const rows=Object.entries(per).sort((a,b)=>b[1].aw-a[1].aw||b[1].wait-a[1].wait);
+ const unfinished=data.jobs.filter(j=>!j.published).length;
+ const js=data.jobs.map(j=>{const r=roleRows(j).filter(x=>x.status!=='na'),f=k=>r.filter(x=>x.status===k).reduce((a,x)=>a+x.pts,0),plan=r.reduce((a,x)=>a+x.pts,0),aw=f('awarded'),wt=f('waiting');return {j,plan,aw,wt,left:plan-aw-wt,rest:plan-aw}});
+ const T={plan:0,aw:0,restAll:0,wt:0,work:0};js.forEach(x=>{T.plan+=x.plan;T.aw+=x.aw;if(!x.j.published){T.restAll+=x.rest;T.wt+=x.wt;T.work+=x.left}});
+ const cards=`<div class="kpis"><div class="kpi"><small>Итоговая стоимость всех сделок</small><b>${sum(T.plan)}</b></div><div class="kpi"><small>К выплате по завершённым</small><b class="ok">${sum(T.aw)}</b></div><div class="kpi"><small>Остаток по незавершённым (${unfinished})</small><b>${sum(T.restAll)}</b><span>из них выполнено, ждёт завершения: ${sum(T.wt)}<br>ещё в работе: ${sum(T.work)}</span></div></div>`;
+ const jt=js.length?`<div class="hist">По сделкам</div><div class="tbl"><table><thead><tr><th>Ролик</th><th>Статус</th><th>Всего, сум</th><th>К выплате</th><th>Осталось</th></tr></thead><tbody>${js.map(x=>`<tr><td><b>${esc(x.j.topic)}</b><br><span class="meta">${esc(x.j.brand)}</span></td><td>${x.j.published?'завершён':esc(x.j.status)}</td><td>${x.plan?x.plan.toLocaleString('ru-RU'):'—'}</td><td>${x.aw?x.aw.toLocaleString('ru-RU'):'—'}</td><td>${x.j.published?'—':(x.rest?x.rest.toLocaleString('ru-RU'):'—')}</td></tr>`).join('')}</tbody></table></div>`:'';
+ $('#view').innerHTML=needDb()+`<p class="note">Оплата в сумах за каждую выполненную роль начисляется после того, как ролик опубликован, а чек-лист ОТК закрыт. Суммы задаются в каждой сделке отдельно. Нажмите на сотрудника или на роль, чтобы открыть подробный отчёт. Пока проект не завершён, выполненная работа показывается как «ждёт».</p>${cards}`+
+ `<div class="tbl">${rows.length?`<table><thead><tr><th>Сотрудник</th><th>Роли</th><th>К выплате, сум</th><th>Ждёт завершения проекта</th><th>В работе</th><th>Проектов</th></tr></thead><tbody>${rows.map(([n,p])=>`<tr class="clk" tabindex="0" data-person="${esc(n)}"><td><b>${esc(n)}</b></td><td>${[...p.roles].map(r=>`<button type="button" class="chipbtn" data-role="${esc(r)}">${esc(r)}</button>`).join(' ')}</td><td><b class="ok">${p.aw.toLocaleString('ru-RU')}</b></td><td>${p.wait?p.wait.toLocaleString('ru-RU'):'—'}</td><td>${p.work?p.work.toLocaleString('ru-RU'):'—'}</td><td>${p.jobs.size}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">Пока никто не назначен. Откройте ролик, раздел «Команда и оплата», впишите имена и суммы по ролям.</div>'}</div>`+jt;
+ const v=$('#view');v.querySelectorAll('[data-role]').forEach(b=>b.onclick=e=>{e.stopPropagation();bView={kind:'role',key:b.dataset.role};render()});
+ v.querySelectorAll('[data-person]').forEach(r=>{const go=()=>{bView={kind:'person',key:r.dataset.person};render()};r.onclick=go;r.onkeydown=e=>{if(e.key==='Enter')go()}})}
+function detail(){
+ const j=data.jobs.find(x=>x.id===openId),n=idx(j),sc=j.scenes||[];
+ const ed=i=>n===i&&db!==null; // редактирование только на своём этапе
+ const dis=i=>!ed(i);
+ const musF=st=>fld('Музыка: название или ссылка (необязательно)','music',j.music,{dis:dis(st),ph:'Название трека, исполнитель или ссылка на материал',tag:j.music?'Заполнил: '+(j.musicBy||'автор брифа'):'Пока никто не заполнил'});
+ const outF=st=>{const cur=(j.outFmt||'').split(/[,\s]+/).filter(Boolean);return `<div class="chips"><span class="clab">Выходные форматы${st<5?' (необязательно)':''}</span><div class="crow">${OUTF.map(f=>`<button type="button" class="chip" data-chip="${f}" aria-pressed="${cur.includes(f)}" ${dis(st)?'disabled':''}>${f}</button>`).join('')}</div><span class="tag" id="outtag">${j.outFmt?'Заполнил: '+(j.outFmtBy||'автор брифа'):'Пока никто не заполнил'}</span></div>`};
+ const briefHtml=`<div class="grid">${outF(0)}${musF(0)}${fld('Бренд','brand',j.brand,{dis:dis(0)})}${fld('Тема / оффер','topic',j.topic,{dis:dis(0)})}${fld('CTA','cta',j.cta,{dis:dis(0)})}
+  ${fld('Формат','format',j.format,{dis:dis(0),opts:FMT})}${fld('Язык','lang',j.lang,{dis:dis(0),opts:['русский','узбекский','смешанный']})}${fld('Длительность, с','duration',j.duration,{dis:dis(0),type:'number'})}
+  ${fld('Подход','approach',j.approach,{dis:dis(0),opts:APPROACH})}${fld('Стиль (ST-xx)','style',j.style,{dis:dis(0)})}</div><div class="rule"><b>Как снимать: общие параметры</b> (необязательно). Что не задано в брифе, допишет сценарист, а то, что останется пустым, заполнит видеомейкер.</div><div class="grid">${fld('Как снимать (кадр, ракурс, свет)','how',j.how,{dis:dis(0),rows:2})}${fld('С кем снимать (кто в кадре)','who',j.who,{dis:dis(0),rows:2})}${fld('Где / что нужно','place',j.place,{dis:dis(0),rows:2})}</div>${fld('Живой B-roll: что снять дополнительно (необязательно)','broll',j.broll,{dis:dis(0),rows:2,ph:'Какие живые кадры нужны к ролику'})}${fld('Инструкция монтажёру: общая (необязательно)','editInstr',j.editInstr,{dis:dis(0),rows:2,ph:'Нарезка, титры, переходы, SFX, темп'})}${fld('Аудитория и боль','audience',j.audience,{dis:dis(0),rows:2})}${fld('Референсы и пожелания','refs',j.refs,{dis:dis(0),rows:2})}`;
+ const scriptHtml=`<div class="grid">${outF(1)}${musF(1)}</div>`+sc.map((s,i)=>`<div class="scene"><h4><span>Сцена ${i+1}</span>${ed(1)?`<button class="btn" data-rm="${i}">Удалить</button>`:''}</h4><div class="grid">
+  ${fld('Тайминг','time',s.time,{i,dis:dis(1),ph:'0–3 с'})}${fld('Источник','source',s.source,{i,dis:dis(1),opts:['анимация','клип из базы','съёмка']})}</div>
+  ${fld('Текст голоса','voice',s.voice,{i,dis:dis(1),rows:2})}${fld('Текст на экране','screen',s.screen,{i,dis:dis(1),rows:1})}${fld('Визуал','visual',s.visual,{i,dis:dis(1),rows:2})}
+  <div class="grid">${fld('Как снимать (необязательно)','how',s.how,{i,dis:dis(1),rows:2,ph:j.how?'По брифу: '+j.how:''})}${fld('С кем снимать (необязательно)','who',s.who,{i,dis:dis(1),rows:2,ph:j.who?'По брифу: '+j.who:''})}${fld('Где / что нужно (необязательно)','place',s.place,{i,dis:dis(1),rows:2,ph:j.place?'По брифу: '+j.place:''})}</div>${fld('Инструкция монтажёру (нарезка, титр, переход, SFX) (необязательно)','editInstr',s.editInstr,{i,dis:dis(1),rows:2,tag:authorTag(j,s,'editInstr'),ph:j.editInstr?'По брифу: '+j.editInstr:''})}${fld('Живой B-roll: что снять (необязательно)','broll',s.broll,{i,dis:dis(1),rows:2,tag:authorTag(j,s,'broll'),ph:j.broll?'По брифу: '+j.broll:'Например: руки бариста, пар от чашки, зерно крупным планом'})}</div>`).join('')||'<div class="empty">Сцен пока нет.</div>';
+ const shootNote=`${(j.how||j.who||j.place)?`<p class="note">Из брифа: ${esc([j.how,j.who,j.place].filter(Boolean).join(' · '))}. Пустые поля в сценах считаются заданными брифом, поэтому дополните только то, что нужно уточнить.</p>`:''}`;
+ const shootHtml=`<div class="grid">${outF(2)}${musF(2)}</div>`+shootNote+sc.map((s,i)=>`<div class="scene"><h4><span>Сцена ${i+1} · ${esc(s.time)}</span><span>${esc(s.source)}</span></h4>
+  <div class="ro"><small>Сценарий</small>${esc(s.voice)}${s.visual?'\nВизуал: '+esc(s.visual):''}</div>
+  <div class="grid">${fld('Как снимать (кадр, ракурс, свет)','how',s.how,{i,dis:dis(2),rows:2,tag:authorTag(j,s,'how'),ph:j.how?'Из брифа: '+j.how:''})}${fld('С кем снимать (кто в кадре)','who',s.who,{i,dis:dis(2),rows:2,tag:authorTag(j,s,'who'),ph:j.who?'Из брифа: '+j.who:''})}${fld('Где / что нужно','place',s.place,{i,dis:dis(2),rows:2,tag:authorTag(j,s,'place'),ph:j.place?'Из брифа: '+j.place:''})}${fld('Статус','take',s.take||'не снято',{i,dis:dis(2),opts:['не снято','снято','переснять']})}</div>${fld('Инструкция монтажёру (нарезка, титр, переход, SFX) (необязательно)','editInstr',s.editInstr,{i,dis:dis(2),rows:2,tag:authorTag(j,s,'editInstr'),ph:j.editInstr?'По брифу: '+j.editInstr:''})}${fld('Живой B-roll: что снять (необязательно)','broll',s.broll,{i,dis:dis(2),rows:2,tag:authorTag(j,s,'broll'),ph:j.broll?'По брифу: '+j.broll:'Например: руки бариста, пар от чашки, зерно крупным планом'})}${fld('Живой B-roll: статус','brollStatus',s.brollStatus,{i,dis:dis(2),opts:['','не нужен','нужно снять','снято']})}</div>`).join('')||'<div class="empty">Нет сцен.</div>';
+ const matHtml=`<div class="grid">${outF(3)}${musF(3)}</div>`+sc.map((s,i)=>`<div class="scene"><h4><span>Сцена ${i+1} · ${esc(s.time)}</span><span>${esc(s.take||'')}</span></h4>
+  <div class="ro"><small>Задумано</small>${esc(s.voice)}\n${esc(s.how||'')}</div>
+  <div class="grid">${fld('Файл / ссылка на отснятое','file',s.file,{i,dis:dis(3)})}${fld('Отрезок (in–out)','inout',s.inout,{i,dis:dis(3),ph:'00:12–00:19'})}${fld('Вердикт','verdict',s.verdict,{i,dis:dis(3),opts:['','годится','нужен дубль','заменить анимацией']})}</div>${takesHtml(s,i,dis(3))}${fld('Комментарий ПМ','pmNote',s.pmNote,{i,dis:dis(3),rows:1})}${fld('Инструкция монтажёру (нарезка, титр, переход, SFX) (необязательно)','editInstr',s.editInstr,{i,dis:dis(3),rows:2,tag:authorTag(j,s,'editInstr'),ph:j.editInstr?'По брифу: '+j.editInstr:''})}</div>`).join('')||'<div class="empty">Нет сцен.</div>';
+ const gaps=sc.map((s,i)=>[s,i]).filter(([s])=>isGap(s));
+ const aiHtml=gaps.length?gaps.map(([s,i])=>`<div class="scene"><h4><span>Сцена ${i+1} · ${esc(s.time)}</span><span>${esc(s.aiStatus||'не сгенерировано')}</span></h4><div class="ro"><small>Что нужно показать</small>${esc(s.voice)}${s.visual?'\nВизуал: '+esc(s.visual):''}${s.pmNote?'\nКомментарий ПМ: '+esc(s.pmNote):''}</div><div class="grid">${fld('Тип','aiType',s.aiType,{i,dis:dis(4),opts:['','AI B-roll (видео)','AI изображение','анимация (код)','анимация (AI)']})}${fld('Инструмент','aiTool',s.aiTool,{i,dis:dis(4),ph:'Veo, Sora, Runway, Kling…'})}${fld('Стиль (ST-xx)','aiStyle',s.aiStyle,{i,dis:dis(4),ph:j.style||''})}</div>${fld('Промпт / описание кадра','aiPrompt',s.aiPrompt,{i,dis:dis(4),rows:3})}<div class="grid">${fld('Результат (файл / ссылка)','aiFile',s.aiFile,{i,dis:dis(4)})}${fld('Статус','aiStatus',s.aiStatus||'не сгенерировано',{i,dis:dis(4),opts:['не сгенерировано','сгенерировано','переделать']})}</div></div>`).join(''):'<div class="empty">Все сцены сняты, генерировать нечего. Этап можно передать дальше.</div>';
+ const packHtml=`<div class="grid">${musF(5)}${fld('Голос','voiceMode',j.voiceMode,{dis:dis(5),opts:['','исходный голос','TTS','без голоса']})}${outF(5)}</div>`+
+  sc.map((s,i)=>`<div class="scene"><h4><span>Сцена ${i+1} · ${esc(s.time)}</span><span>${s.edited?'<b class="ok">✓ готово в монтаже</b>':esc(s.verdict||'')}</span></h4>
+  <div class="ro"><small>Материал</small>${esc(s.file||'—')} ${esc(s.inout||'')}${(s.takes||[]).filter(x=>x.file).map((x,k)=>'\nДубль '+(k+2)+': '+esc(x.file)+' '+esc(x.inout||'')+(x.note?' ('+esc(x.note)+')':'')).join('')}</div><div class="ro"><small>Текст на экране (накладывает монтажёр)</small>${esc(s.screen||'—')}</div>
+  ${fld('Инструкция монтажёру (нарезка, титр, переход, SFX)','editInstr',s.editInstr,{i,dis:dis(5),rows:2,tag:authorTag(j,s,'editInstr'),ph:j.editInstr?'По брифу: '+j.editInstr:''})}${s.edited?`<div class="row"><span class="pill library">Готово в монтаже${s.editedAt?' · '+new Date(s.editedAt).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):''}</span>${ed(5)?`<button type="button" class="btn" data-edone="${i}">Вернуть в работу</button>`:''}</div>`:ed(5)?`<button type="button" class="btn primary" data-edone="${i}">Готово в монтаже</button>`:''}</div>`).join('')+
+  `<div class="grid"><div style="display:flex;flex-direction:column;gap:8px">${fld('Готовый ролик целиком: ссылка или файл','renderUrl',j.renderUrl,{dis:dis(5),ph:'Ссылка из Telegram-канала, группы, облака'})}${AS&&ed(5)?'<button type="button" class="btn" id="rupl" style="width:fit-content">Загрузить файл с компьютера</button>':''}</div>${fld('Заметки монтажёра','editorNote',j.editorNote,{dis:dis(5),rows:2})}</div>`;
+ const qcHtml=QC.map(([k,l])=>`<label class="chk"><input type="checkbox" data-qc="${k}" ${(j.qc||{})[k]?'checked':''} ${dis(6)?'disabled':''}>${l}</label>`).join('')+fld('Замечания ОТК','qcNote',j.qcNote,{dis:dis(6),rows:2});
+ const pubHtml=`<div class="grid">${fld('Площадка','platform',j.platform,{dis:dis(7),opts:['','Instagram Reels','TikTok','YouTube Shorts','Telegram','Facebook']})}${fld('Дата публикации','pubDate',j.pubDate,{dis:dis(7),type:'date'})}${fld('Ссылка на пост','pubUrl',j.pubUrl,{dis:dis(7)})}</div>`+(j.published?'<span class="pill library">опубликовано</span>':'');
+ const S=[briefHtml,scriptHtml+(ed(1)?'<button class="btn" id="addsc">+ Сцена</button>':''),shootHtml,matHtml,aiHtml,packHtml,qcHtml,pubHtml];
+ const secs0=sec(`${n+1}. ${ST[n].k}`,ST[n].role,true,true,S[n]);
+ const secs=n===6?`<div class="hist">Готовый ролик</div>${videoPane(j)}`+secs0+sec('Чек-лист: всё, что записано по ролику','',true,false,reviewHtml(j,false)):secs0+(n>0?'<div class="hist">Справка: прошлые этапы</div>'+ST.slice(0,n).map((s,i)=>sec(`${i+1}. ${s.k}`,s.role+' · '+prog({...j,status:s.k}),false,false,S[i])).join(''):'')+(n>6?sec('Итог ОТК (остаётся в проекте)','',true,false,reviewHtml(j,true)):'');
+ const next=ST[n+1];
+ $('#view').innerHTML=`<div id="detail" style="display:flex;flex-direction:column;gap:14px"><button class="btn" id="back" style="width:fit-content">← К очереди</button>
+ <div><h2 style="margin:0">${esc(j.topic)}</h2><p class="sub">${esc(j.brand)} · сейчас: <b>${ST[n].k}</b> · ${ST[n].role}</p></div>
+ <div class="stepper">${ST.map((s,i)=>`<span class="${i<n?'done':i===n?'now':''}">${s.k}</span>`).join('')}</div>
+ ${needDb()}<p class="note">${ST[n].hint}</p><div id="errbox" class="errbox" hidden></div>${secs}${n===7?teamHtml(j,n):''}
+ <div id="ap" class="apbox"></div><div class="bar">${n>0?'<button class="btn" id="prev">← Вернуть на этап назад</button>':''}${next&&db?`<button class="btn primary" id="next">${n===1?'Передать видеомейкеру':'Готово, передать: '+next.role}</button>`:''}${n===7&&db&&!j.published?'<button class="btn primary" id="pub">Отметить опубликованным</button>':''}<span class="ready" id="ready"></span><span class="err" id="err"></span></div><button class="linkbtn" id="del">Удалить ролик</button></div>`;
+ wire(j,n);apUI(j,n);
+}
+const apOf=(j,n)=>(j.appr||{})[ST[n].k]||{};
+function ready(j,n){mark(j,n);const r=$('#ready');if(!r)return;const m=check(j,n),a=apOf(j,n);
+ const need=[!a.chief&&'главного'].filter(Boolean);
+ r.textContent=m?m[0].toUpperCase()+m.slice(1)+'.':need.length?'Заполнено. Нужно утверждение: '+need.join(' и ')+'.':'Всё заполнено и утверждено, можно передавать.';
+ r.className='ready'+(!m&&!need.length?' ok':'');
+ const ok=!m&&!need.length;['next','pub'].forEach(id=>{const b=$('#'+id);if(b)b.disabled=!ok})}
+function apUI(j,n){const box=$('#ap');if(!box)return;const a=apOf(j,n),k=ST[n].k;
+ const full=!miss(j,n).length,isChief=db&&full&&(!j.chief||j.chief===me),isPm=db&&role==='Проект-менеджер';
+ const btn=(who,label,ok,hint)=>a[who]?`<span class="pill library">${label}: утверждено</span>`:`<button class="btn" data-ap="${who}" ${ok?'':'disabled'}>Утвердить: ${label}</button>${ok?'':`<span class="meta">${hint}</span>`}`;
+ box.innerHTML=`<div class="hist">Утверждение этапа «${k}»</div><div class="aprow">${btn('chief','Главный',isChief,full?'Утверждает автор брифа':'Сначала заполните этап')}</div><p class="note">Передать дальше можно, когда утвердил главный. Любая правка этапа после утверждения сбрасывает его.</p>`;
+ box.querySelectorAll('[data-ap]').forEach(b=>b.onclick=()=>{if(miss(j,n).length)return;const ap={...(j.appr||{})};ap[k]={...(ap[k]||{}),[b.dataset.ap]:Date.now()};j.appr=ap;db.doc('jobs/'+j.id).update({appr:ap}).catch(e=>setStatus('Не удалось сохранить: '+e.message));apUI(j,n)});
+ ready(j,n)}
+function resetAppr(j,n){const k=ST[n].k;if(j.appr&&j.appr[k]&&(j.appr[k].chief)){j.appr={...j.appr,[k]:{}};db.doc('jobs/'+j.id).update({appr:j.appr});setStatus('Правка сбросила утверждения этого этапа.');apUI(j,n)}}
+const FB=['how','who','place','editInstr','broll'];
+const DONE={take:['снято'],aiStatus:['сгенерировано'],brollStatus:['снято','не нужен']};
+function miss(j,n){const sc=j.scenes||[],m=[],sn=i=>'Сцена '+(i+1)+': ';
+ if(n===0){if(!j.brand)m.push('бренд');if(!j.topic)m.push('тема');if(!j.cta)m.push('CTA')}
+ if(n===1){if(!sc.length)m.push('добавьте хотя бы одну сцену');sc.forEach((s,i)=>{if(!s.voice&&!s.screen)m.push(sn(i)+'голос или текст на экране')})}
+ if(n===2)sc.forEach((s,i)=>{if(isGap(s))return;
+  [['how','как снимать'],['who','с кем снимать'],['place','где снимать']].forEach(([k,l])=>{if(!(s[k]||j[k]))m.push(sn(i)+l)});
+  if(s.take!=='снято')m.push(sn(i)+'статус «снято»');
+  if(s.broll&&!DONE.brollStatus.includes(s.brollStatus))m.push(sn(i)+'живой B-roll: статус «снято» или «не нужен»')});
+ if(n===3)sc.forEach((s,i)=>{if(!s.verdict)m.push(sn(i)+'вердикт');if(!s.file&&!isGap(s))m.push(sn(i)+'файл')});
+ if(n===4)sc.forEach((s,i)=>{if(!isGap(s))return;if(!s.aiFile)m.push(sn(i)+'результат (файл или ссылка)');if(s.aiStatus!=='сгенерировано')m.push(sn(i)+'статус «сгенерировано»')});
+ if(n===5){if(!j.outFmt)m.push('выходные форматы');sc.forEach((s,i)=>{if(!(s.editInstr||j.editInstr))m.push(sn(i)+'инструкция монтажёру');if(!s.edited)m.push(sn(i)+'отметьте «готово в монтаже»')});if(!j.renderUrl)m.push('ссылка на рендер')}
+ if(n===6){const c=rvStats(j);if(c.none)m.push('чек-лист по ролику: не проверено пунктов — '+c.none);const r=j.review||{};reviewItems(j).forEach(x=>{const e=r[x.key];if(e&&e.st&&e.st!=='ok'&&!(e.note||'').trim())m.push('комментарий к пункту «'+x.l+'»')})}
+ if(n===6)QC.forEach(([k,l])=>{if(!(j.qc||{})[k])m.push('ОТК: '+l.toLowerCase())});
+ if(n===7){if(!j.platform)m.push('площадка');if(!j.pubDate)m.push('дата публикации');roleRows(j).forEach(r=>{if(r.status==='unassigned')m.push('оплата: укажите сотрудника для роли «'+r.role+'»');else if(r.status==='nosum')m.push('оплата: укажите сумму для роли «'+r.role+'»')})}
+ return m}
+function check(j,n){const m=miss(j,n);return m.length?'не заполнено: '+m[0]+(m.length>1?' и ещё '+(m.length-1):''):''}
+/* подсветка: красное = обязательное пусто, зелёное = заполнено */
+function mark(j,n){const d=$('#detail');if(!d)return;const sc=j.scenes||[],m=miss(j,n);
+ const eb=$('#errbox');if(eb){eb.hidden=!m.length;eb.innerHTML=m.length?`<b>Не заполнено на этапе «${ST[n].k}»</b><ul>${m.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:''}
+ const req={0:['brand','topic','cta'],1:['voice','screen'],2:['how','who','place','take','brollStatus'],3:['verdict','file'],4:['aiFile','aiStatus'],5:['editInstr','renderUrl'],7:['platform','pubDate']}[n]||[];
+ d.querySelectorAll('details.active [data-k]').forEach(el=>{if(el.disabled)return;const k=el.dataset.k,i=el.dataset.i;let v,filled;
+  const s=i!=null?sc[+i]:null;if(s&&isGap(s)&&n===2){el.classList.remove('good','bad');return}
+  v=s?(s[k]||(FB.includes(k)?j[k]:'')):j[k];
+  filled=DONE[k]?DONE[k].includes(v):(k==='verdict'?!!v:!!(v&&String(v).trim()));
+  if(k==='voice'||k==='screen')filled=!!(s&&(s.voice||s.screen));
+  let need=req.includes(k);if(k==='brollStatus')need=!!(s&&s.broll);if(k==='file'&&s&&isGap(s))need=false;
+  if(n===5&&k==='editInstr')need=true;
+  el.classList.toggle('good',!!filled);el.classList.toggle('bad',need&&!filled)});
+ const cr=d.querySelector('.crow');if(cr&&!cr.querySelector('[disabled]')){cr.classList.toggle('good',!!j.outFmt);cr.classList.toggle('bad',n===5&&!j.outFmt)}
+ d.querySelectorAll('[data-qc]').forEach(c=>{if(c.disabled)return;const l=c.closest('label');l.classList.toggle('good',c.checked);l.classList.toggle('bad',n===6&&!c.checked)})}
+function wire(j,n){
+ const d=$('#detail'),upd=o=>db.doc('jobs/'+j.id).update(o).catch(e=>setStatus('Не удалось сохранить: '+e.message));
+ d.addEventListener('toggle',e=>{if(e.target.dataset&&e.target.dataset.team!==undefined)teamOpen=e.target.open},true);
+ d.addEventListener('change',e=>{const t=e.target;if(t.dataset.asg){const a={...(j.assign||{}),[t.dataset.asg]:t.value.trim()};j.assign=a;upd({assign:a});resetAppr(j,n);ready(j,n);return}if(t.dataset.amt){const a={...(j.amt||{}),[t.dataset.amt]:+t.value||0};j.amt=a;upd({amt:a});resetAppr(j,n);ready(j,n);return}if(t.dataset.rvn){const r={...(j.review||{})};r[t.dataset.rvn]={...(r[t.dataset.rvn]||{}),note:t.value};j.review=r;upd({review:r});ready(j,n);return}if(!t.dataset.tf)return;const i=+t.dataset.i,ti=+t.dataset.ti,sc=[...j.scenes],tk=[...(sc[i].takes||[])];tk[ti]={...tk[ti],[t.dataset.tf]:t.value};sc[i]={...sc[i],takes:tk};j.scenes=sc;upd({scenes:sc})});
+ d.addEventListener('click',async e=>{const rb=e.target.closest('[data-rv],#rvall');if(rb&&n===6){const r={...(j.review||{})};
+   if(rb.id==='rvall'){reviewItems(j).forEach(x=>{if(!(r[x.key]||{}).st)r[x.key]={st:'ok',note:''}})}else{const[k,st]=rb.dataset.rv.split('|');r[k]={...(r[k]||{}),st}}
+   j.review=r;upd({review:r});resetAppr(j,n);const rows=d.querySelectorAll('[data-rvrow]');rows.forEach(rw=>{const cur=r[rw.dataset.rvrow]||{};rw.className='rvrow '+(cur.st||'');rw.querySelectorAll('[data-rv]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.rv.split('|')[1]===cur.st));const ni=rw.querySelector('.rvnote');ni.hidden=!(cur.st&&cur.st!=='ok')});
+   const c=rvStats(j),st=$('#rvstat');if(st)st.textContent=`Верно ${c.ok} · Пропущено ${c.miss} · Лишнее ${c.extra} · Не проверено ${c.none}`;ready(j,n);return}
+  const b=e.target.closest('[data-addtake],[data-rmtake],[data-upl],[data-edone]');if(!b)return;const sc=[...j.scenes];
+  if(b.dataset.edone!=null){const i=+b.dataset.edone,on=!sc[i].edited;sc[i]={...sc[i],edited:on,editedAt:on?Date.now():null};return upd({scenes:sc})}
+  if(b.dataset.addtake!=null){const i=+b.dataset.addtake;sc[i]={...sc[i],takes:[...(sc[i].takes||[]),{file:'',inout:'',note:''}]};return upd({scenes:sc})}
+  if(b.dataset.rmtake){const[i,ti]=b.dataset.rmtake.split(':').map(Number);sc[i]={...sc[i],takes:sc[i].takes.filter((_,k)=>k!==ti)};return upd({scenes:sc})}
+  if(b.dataset.upl&&AS){const[i,ti]=b.dataset.upl.split(':').map(Number);const inp=document.createElement('input');inp.type='file';inp.accept='video/*,image/*';
+   inp.onchange=async()=>{const f=inp.files[0];if(!f)return;setStatus('Загружается: '+f.name+'…');try{const r=await AS.upload(f);const tk=[...sc[i].takes];tk[ti]={...tk[ti],file:r.url};sc[i]={...sc[i],takes:tk};upd({scenes:sc});setStatus('Загружено: '+f.name)}catch(err){setStatus('Не удалось загрузить (лимит 20 МБ): '+(err.message||err.code))}};inp.click()}});
+ const ru=$('#rupl');if(ru)ru.onclick=()=>{const inp=document.createElement('input');inp.type='file';inp.accept='video/*';inp.onchange=async()=>{const f=inp.files[0];if(!f)return;setStatus('Загружается: '+f.name+'…');try{const r=await AS.upload(f);j.renderUrl=r.url;j.renderIsFile=true;upd({renderUrl:r.url,renderIsFile:true});setStatus('Ролик загружен');ready(j,n)}catch(err){setStatus('Не удалось загрузить (лимит 20 МБ): '+(err.message||err.code)+'. Вставьте ссылку.')}};inp.click()};
+ d.addEventListener('input',e=>{const t=e.target,k=t.dataset.k;if(!k||t.type==='checkbox')return;const v=t.type==='number'?+t.value:t.value;
+  if(t.dataset.i!=null){const sc=[...j.scenes];sc[+t.dataset.i]={...sc[+t.dataset.i],[k]:v};j.scenes=sc}else j[k]=v;mark(j,n)});
+ d.addEventListener('change',e=>{const t=e.target;if(t.dataset.qc){j.qc={...(j.qc||{}),[t.dataset.qc]:t.checked};resetAppr(j,n);ready(j,n);return upd({qc:j.qc})}
+  const k=t.dataset.k;if(!k)return;const v=t.type==='number'?+t.value:t.value;
+  if(t.dataset.i!=null){const sc=[...j.scenes];const cur=sc[+t.dataset.i];sc[+t.dataset.i]={...cur,[k]:v,...(['how','who','place','editInstr','broll'].includes(k)?{src:{...(cur.src||{}),[k]:BYSTAGE[n]}}:{})};j.scenes=sc;resetAppr(j,n);ready(j,n);upd({scenes:sc})}else{j[k]=v;const o={[k]:v};if(k==='outFmt'){j.outFmtBy=BYSTAGE[n];o.outFmtBy=j.outFmtBy}if(k==='music'){j.musicBy=BYSTAGE[n];o.musicBy=j.musicBy}resetAppr(j,n);ready(j,n);upd(o);if(k==='outFmt'||k==='music')apUI(j,n)}});
+ d.addEventListener('click',e=>{const c=e.target.closest('[data-chip]');if(!c||c.disabled)return;const on=c.getAttribute('aria-pressed')!=='true';c.setAttribute('aria-pressed',on);
+  const v=[...d.querySelectorAll('[data-chip]')].filter(x=>x.getAttribute('aria-pressed')==='true').map(x=>x.dataset.chip).join(', ');
+  j.outFmt=v;j.outFmtBy=BYSTAGE[n];resetAppr(j,n);ready(j,n);upd({outFmt:v,outFmtBy:j.outFmtBy});const t=$('#outtag');if(t)t.textContent=v?'Заполнил: '+j.outFmtBy:'Пока никто не заполнил';apUI(j,n)});
+ $('#back').onclick=()=>{openId=null;render()};
+ const a=$('#addsc');if(a)a.onclick=()=>upd({scenes:[...(j.scenes||[]),{time:'',voice:'',screen:'',visual:'',source:'анимация'}]});
+ d.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>upd({scenes:j.scenes.filter((_,i)=>i!==+b.dataset.rm)}));
+ const nx=$('#next');if(nx)nx.onclick=()=>{const m=check(j,n);if(m){$('#err').textContent=m;return}upd({status:ST[n+1].k,since:Date.now()})};
+ const pv=$('#prev');if(pv)pv.onclick=()=>upd({status:ST[n-1].k,since:Date.now()});
+ const pb=$('#pub');if(pb)pb.onclick=()=>{const m=check(j,7);if(m){$('#err').textContent=m;return}upd({published:true,bonus:{at:Date.now(),items:roleRows({...j,published:true},true)}})};
+ const dl=$('#del');dl.onclick=()=>{if(dl.dataset.s){db.doc('jobs/'+j.id).delete().then(()=>{openId=null;render()})}else{dl.dataset.s=1;dl.textContent='Нажмите ещё раз для удаления'}};
+}
+/* ---------- справочники ---------- */
+function table(key,cols,labels,fields,hint){const rows=data[key];
+ $('#view').innerHTML=needDb()+`<div class="tbl">${rows.length?`<table><thead><tr>${labels.map(l=>`<th>${l}</th>`).join('')}<th></th></tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(r[c])}</td>`).join('')}<td><button class="btn" data-del="${r.id}">Удалить</button></td></tr>`).join('')}</tbody></table>`:`<div class="empty">${hint}</div>`}</div>
+ <form id="f">${fields.map(([id,l,type,op])=>type==='select'?`<label>${l}<select id="${id}">${opts(op)}</select></label>`:`<label>${l}<input id="${id}" ${type==='req'?'required':''}></label>`).join('')}<div class="wide"><button class="btn primary" type="submit">Добавить</button></div></form>`;
+ $('#f').onsubmit=async e=>{e.preventDefault();if(!db){setStatus('Нужен вход в аккаунт.');return}const o={created:Date.now()};fields.forEach(([id])=>o[id]=$('#'+id).value.trim());
+  try{await db.collection(key).add(o);setStatus('Добавлено')}catch(err){setStatus('Не удалось сохранить: '+err.message)}};
+ $('#view').querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>db&&db.doc(key+'/'+b.dataset.del).delete().catch(err=>setStatus(err.message)))}
+const clips=()=>table('clips',['file','kind','duration','tags','rights'],['Файл','Тип','Длит.','Теги','Права'],[['file','Файл в library/clips/','req'],['kind','Тип','select',['talking-head','b-roll','screen','product','motion','готовый-reel']],['duration','Длительность, с'],['tags','Теги через запятую'],['rights','Права','select',['подтверждены','не подтверждены']]],'В базе пока нет клипов. Если подтверждённого материала меньше 70% длительности, ролик собирается как motion или hybrid.');
+const brands=()=>table('brands',['name','colors','fonts','lang','style'],['Бренд','Цвета','Шрифты','Язык','Стиль'],[['name','Название','req'],['colors','Цвета (hex через запятую)'],['fonts','Шрифты'],['lang','Язык'],['style','Стиль по умолчанию (ST-xx)']],'Брендов нет. Добавьте первый: цвета, шрифты и язык нужны для ОТК.');
+const styles=()=>table('styles',['code','name','notes'],['Код','Название','Описание'],[['code','Код (ST-01)','req'],['name','Название'],['notes','Палитра, темп, переходы, SFX']],'Стили не записаны. Сохраняйте найденный стиль под новым кодом ST-xx.');
+(()=>{const root=document.documentElement;let t='dark';try{t=localStorage.getItem('theme')||'dark'}catch(e){}root.dataset.theme=t;
+ $('#themebtn').onclick=()=>{t=root.dataset.theme==='dark'?'light':'dark';root.dataset.theme=t;try{localStorage.setItem('theme',t)}catch(e){}}})();
+$('#newbtn').onclick=()=>{tab='new';openId=null;render()};
+$('#role').onchange=e=>{role=e.target.value;try{localStorage.setItem('role',role)}catch(x){}render()};
+function watch(key){db.collection(key).onSnapshot(s=>{data[key]=s.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.created||0)-(b.created||0));
+ const a=document.activeElement;if(!(a&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)&&a.closest('#f,#detail')))render()},e=>setStatus('Данные недоступны: '+e.message))}
+render();
+(async()=>{try{db=await window.claude.use('db')}catch(e){db=null}
+ try{AS=await window.claude.use('assets')}catch(e){AS=null}
+ try{U=await window.claude.use('user');me=U?await U.id():null}catch(e){U=null}
+ if(db)['jobs','clips','brands','styles'].forEach(watch);render()})();
+</script>
